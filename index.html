@@ -42,7 +42,7 @@
         <div class="side">
           <div class="phase" id="phase">Bahisler açık</div>
           <div class="timer"><div class="timer-bar" id="timer-bar"></div></div>
-          <div class="hist-title">Son sonuçlar</div>
+          <div class="hist-title" id="hist-title">Son sonuçlar <span class="more-link">tümü ›</span></div>
           <div class="history" id="history"></div>
           <div class="stats" id="stats">
             <span class="dot red"></span><b id="st-red">0</b>
@@ -91,7 +91,19 @@
         </div>
       </footer>
 
+      <!-- Dönüş sahnesi: çark ortaya gelir, arka plan kararır -->
+      <div class="spin-back" id="spin-back"></div>
+      <div class="spin-cap" id="spin-cap">Bahisler kapandı · çark dönüyor</div>
       <div class="toast" id="toast" hidden></div>
+
+      <!-- Son 100 tur (son sonuçlara dokununca ortada açılır) -->
+      <div class="sheet-back" id="hist-back" hidden></div>
+      <div class="modal" id="hist-modal" hidden>
+        <div class="sheet-head"><b>📊 Son 100 tur</b><button class="x" id="hist-close">✕</button></div>
+        <div class="sheet-sub" id="hist-sub"></div>
+        <div class="hist-stats" id="hist-stats"></div>
+        <div class="hist-grid" id="hist-grid"></div>
+      </div>
 
       <!-- Alt sayfalar -->
       <div class="sheet-back" id="sheet-back" hidden></div>

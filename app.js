@@ -321,6 +321,9 @@ class LiveEngine {
   async leaderboard() {
     try { return await this.rpc('roulette_leaderboard', { p_limit: 20 }); } catch { return null; }
   }
+  async history100() {
+    try { return await this.rpc('roulette_history', { p_limit: 100 }); } catch (e) { return { error: errorText(e) }; }
+  }
 }
 
 // ─── Demo motoru (sunucusuz deneme) ────────────────────────────────────────
@@ -357,7 +360,7 @@ class DemoEngine {
       this.balance += pay;
       if (pay > 0) this.daily.set('Sen', (this.daily.get('Sen') || 0) + pay);
     } else if (r.phase === 'result' && now >= r.resultEndsAt) {
-      this.history.unshift(r.result); this.history = this.history.slice(0, 20);
+      this.history.unshift(r.result); this.history = this.history.slice(0, 100);
       if (this.bets.length) this.lastBets = this.agg(this.bets);
       this.newRound(now);
     }
@@ -414,6 +417,9 @@ class DemoEngine {
     this.bets = [];
     return { ok: true, data: this.state() };
   }
+  async history100() {
+    return this.history.map((n, i) => ({ number: this.seq - 1 - i, result: n, at: Date.now() - i * 35000 }));
+  }
   async leaderboard() {
     const rows = [...this.daily.entries()].map(([n, w]) => ({ id: n, nickname: n, avatar: '', won: w }));
     return { resetsAt: Date.now() + 5 * 3600e3, rows };
@@ -431,7 +437,10 @@ class Wheel {
   resize() {
     const css = this.canvas.clientWidth || 160;
     const dpr = Math.min(2.5, window.devicePixelRatio || 1);
-    const px = Math.round(css * dpr);
+    // Dönüşte çark ortaya büyüyerek gelir (CSS ölçeği): çizim baştan o
+    // boyutun çözünürlüğünde yapılır, büyüyünce bulanıklaşmaz.
+    const zoom = Math.max(1, this.zoom || 1);
+    const px = Math.min(1600, Math.round(css * dpr * zoom));
     if (px === this.size) return;
     this.size = px;
     this.canvas.width = px; this.canvas.height = px;
@@ -619,7 +628,35 @@ class Game {
     const wheel = clamp(Math.round(h - 418), 118, Math.min(232, Math.round(w * 0.56)));
     const app = $('app');
     app.style.setProperty('--wheel', `${wheel}px`);
-    app.style.setProperty('--wheel-spin', `${Math.min(Math.round(wheel * 1.14), Math.round(w * 0.62))}px`);
+    // Dönüş sahnesindeki boyut: ekranın genişliği/yüksekliğine göre.
+    const big = Math.round(Math.min(window.innerWidth * 0.86, h * 0.6, 460));
+    this.wheel.zoom = big / wheel;
+    this.spinTarget = big;
+    if (this.centered) this.placeWheel(true);
+  }
+
+  /** Çarkı ortaya getirir (dönüşte) ya da yerine döndürür. */
+  placeWheel(center) {
+    const wrap = document.querySelector('.wheel-wrap');
+    if (!center) {
+      wrap.style.transform = '';
+      this.centered = false;
+      return;
+    }
+    const prev = wrap.style.transform;
+    wrap.style.transition = 'none';
+    wrap.style.transform = '';
+    const r = wrap.getBoundingClientRect();
+    wrap.style.transform = prev;
+    void wrap.offsetWidth;
+    wrap.style.transition = '';
+    const scale = (this.spinTarget || r.width) / r.width;
+    const cx = window.innerWidth / 2, cy = window.innerHeight * 0.46;
+    const dx = cx - (r.left + r.width / 2), dy = cy - (r.top + r.height / 2);
+    wrap.style.transform = `translate(${dx}px, ${dy}px) scale(${scale})`;
+    const cap = $('spin-cap');
+    cap.style.top = `${Math.round(cy + (this.spinTarget || r.width) / 2 + 14)}px`;
+    this.centered = true;
   }
   get round() { return this.snap?.round ?? null; }
 
@@ -711,6 +748,10 @@ class Game {
     $('btn-sound').textContent = Sound.on ? '🔊' : '🔇';
     $('btn-help').onclick = () => this.openSheet('sheet-help');
     $('btn-board').onclick = () => this.openBoard();
+    // Son sonuçlara dokununca: son 100 turun tablosu (ortada açılır).
+    for (const id of ['history', 'hist-title', 'stats']) $(id).onclick = () => this.openHistory();
+    $('hist-close').onclick = () => this.closeHistory();
+    $('hist-back').onclick = () => this.closeHistory();
     $('sheet-back').onclick = () => this.closeSheets();
     document.querySelectorAll('[data-close]').forEach((b) => (b.onclick = () => this.closeSheets()));
   }
@@ -910,8 +951,9 @@ class Game {
     const hist = this.snap?.history || [];
     const box = $('history');
     box.innerHTML = '';
-    const cap = window.innerHeight < 560 ? 10 : 8;
-    for (const n of hist.slice(0, cap)) {
+    // Sığdığı kadar **tam** kutu (yarım kesik kutu görünmesin).
+    const fitCount = Math.max(4, Math.floor(((box.clientWidth || 180) - 4 + 3) / 24));
+    for (const n of hist.slice(0, fitCount)) {
       const d = document.createElement('div');
       d.className = `h ${colorOf(n)}`;
       d.textContent = n;
@@ -1037,9 +1079,11 @@ class Game {
 
     const locked = !!r && !this.bettingOpen();
     app.classList.toggle('locked', locked);
-    app.classList.toggle('spin', phase === 'spinning');
+    const spinning = phase === 'spinning';
+    app.classList.toggle('spin', spinning);
+    if (spinning !== !!this.centered) this.placeWheel(spinning);
     const closed = $('closed');
-    const showClosed = !!r && phase === 'spinning';
+    const showClosed = false; // dönüş yazısı artık çarkın altında (spin-cap)
     if (closed.hidden === showClosed) closed.hidden = !showClosed;
     requestAnimationFrame(() => this.frame());
   }
@@ -1093,6 +1137,45 @@ class Game {
       list.appendChild(row);
     });
   }
+
+  async openHistory() {
+    $('hist-back').hidden = false;
+    $('hist-modal').hidden = false;
+    const grid = $('hist-grid');
+    grid.innerHTML = '<div class="empty">Yükleniyor…</div>';
+    const data = await this.engine.history100();
+    if (!Array.isArray(data)) {
+      grid.innerHTML = `<div class="empty">${data?.error || 'Geçmiş okunamadı.'}</div>`;
+      return;
+    }
+    const nums = data.map((d) => Number(d.result)).filter((n) => n >= 0 && n <= 36);
+    const total = nums.length || 1;
+    const pct = (k) => `${Math.round((k / total) * 100)}%`;
+    const cnt = (f) => nums.filter(f).length;
+    const red = cnt((n) => RED.has(n)), zero = cnt((n) => n === 0), black = nums.length - red - zero;
+    const freq = new Map();
+    for (const n of nums) freq.set(n, (freq.get(n) || 0) + 1);
+    const all = Array.from({ length: 37 }, (_, i) => [i, freq.get(i) || 0]);
+    const hot = [...all].sort((a, b) => b[1] - a[1] || a[0] - b[0]).slice(0, 5);
+    const cold = [...all].sort((a, b) => a[1] - b[1] || a[0] - b[0]).slice(0, 5);
+    const ball = (n, extra = '') => `<span class="hb ${colorOf(n)}">${n}${extra}</span>`;
+    const bar = (label, a, b, ca, cb) => `<div class="hbar"><span>${label}</span><div class="hbar-track"><i class="${ca}" style="width:${(a / total) * 100}%"></i><i class="${cb}" style="width:${(b / total) * 100}%"></i></div><small class="hbar-n">${a} · ${b}</small></div>`;
+    $('hist-sub').textContent = `Son ${nums.length} tur · en yeni solda üstte`;
+    $('hist-stats').innerHTML = `
+      <div class="hs-row"><span class="dot red"></span>Kırmızı <b>${red}</b> <small>${pct(red)}</small>
+        <span class="dot black"></span>Siyah <b>${black}</b> <small>${pct(black)}</small>
+        <span class="dot green"></span>Sıfır <b>${zero}</b> <small>${pct(zero)}</small></div>
+      ${bar('Tek / Çift', cnt((n) => n % 2 === 1), cnt((n) => n > 0 && n % 2 === 0), 'c-a', 'c-b')}
+      ${bar('1-18 / 19-36', cnt((n) => n >= 1 && n <= 18), cnt((n) => n >= 19), 'c-a', 'c-b')}
+      <div class="hs-row doz">Düzine: <b>${cnt((n) => n >= 1 && n <= 12)}</b> · <b>${cnt((n) => n >= 13 && n <= 24)}</b> · <b>${cnt((n) => n >= 25)}</b></div>
+      <div class="hs-row"><span class="lbl">🔥 Sıcak</span>${hot.map(([n, c]) => ball(n, `<em>${c}</em>`)).join('')}</div>
+      <div class="hs-row"><span class="lbl">❄️ Soğuk</span>${cold.map(([n, c]) => ball(n, `<em>${c}</em>`)).join('')}</div>`;
+    grid.innerHTML = data.length
+      ? data.map((d, i) => `<div class="hcell${i === 0 ? ' last' : ''}" title="Tur #${d.number}">${ball(Number(d.result))}<small>#${d.number}</small></div>`).join('')
+      : '<div class="empty">Henüz biten tur yok.</div>';
+  }
+
+  closeHistory() { $('hist-back').hidden = true; $('hist-modal').hidden = true; }
 
   toast(text) {
     const t = $('toast');
