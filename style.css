@@ -93,7 +93,8 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
 }
 .wheel-wrap { transform-origin: 50% 50%; transition: transform .6s cubic-bezier(.2, .8, .2, 1); will-change: transform; }
 /* Dönüşte çark oyunun **ortasına** büyüyerek gelir, sonuçta yerine döner. */
-.app.spin .wheel-wrap { z-index: 40; filter: drop-shadow(0 18px 40px rgba(0,0,0,.6)); }
+.app.spin .wheel-wrap { z-index: 40; }
+.app.spin #wheel { border-radius: 50%; box-shadow: 0 18px 40px rgba(0,0,0,.55); }
 .spin-back {
   position: fixed; inset: 0; z-index: 39;
   background: radial-gradient(60% 50% at 50% 50%, rgba(40, 22, 80, .55), rgba(6, 4, 14, .86));
@@ -174,7 +175,10 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
   display: flex; flex-direction: column; gap: 4px;
   transition: filter .3s ease, opacity .3s ease;
 }
-.app.locked .felt { filter: saturate(.55) brightness(.75); }
+/* Kilitli masa: filtre yerine ucuz karartma katmanı (telefonda takılmasın). */
+.felt { position: relative; }
+.felt::after { content: ''; position: absolute; inset: 0; border-radius: inherit; background: rgba(6, 4, 14, .32); opacity: 0; transition: opacity .3s ease; pointer-events: none; z-index: 5; }
+.app.locked .felt::after { opacity: 1; }
 .grid {
   display: grid;
   grid-template-columns: 22px repeat(12, minmax(0, 1fr)) 24px;
@@ -194,7 +198,7 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
   color: #fff;
   border: 1px solid rgba(255,255,255,.14);
   box-shadow: inset 0 1px 0 rgba(255,255,255,.12);
-  transition: transform .08s ease, box-shadow .2s ease, filter .2s ease;
+  transition: transform .08s ease;
   min-height: 30px;
 }
 .cell:active { transform: scale(.94); }
@@ -207,10 +211,9 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
 .cell.out.red-bet { background: linear-gradient(180deg, #ee3249, var(--red2)); }
 .cell.out.black-bet { background: linear-gradient(180deg, #34304a, var(--black2)); }
 .cell .diamond { width: 13px; height: 13px; transform: rotate(45deg); border-radius: 3px; }
-.cell.hl { box-shadow: 0 0 0 2px #fff, 0 0 16px rgba(255,255,255,.6); filter: brightness(1.18); z-index: 2; }
-.cell.win { box-shadow: 0 0 0 2px var(--gold), 0 0 22px rgba(255, 207, 90, .9); filter: brightness(1.25); z-index: 3; animation: pulse 0.9s ease-in-out infinite alternate; }
-@keyframes pulse { to { box-shadow: 0 0 0 2px var(--gold), 0 0 8px rgba(255, 207, 90, .5); } }
-.cell.dim { filter: brightness(.55) saturate(.6); }
+.cell.hl { box-shadow: 0 0 0 2px #fff, 0 0 10px rgba(255,255,255,.6); z-index: 2; }
+.cell.win { box-shadow: 0 0 0 2px var(--gold), 0 0 12px rgba(255, 207, 90, .8); z-index: 3; }
+.cell.dim { opacity: .45; }
 
 /* Masadaki çip */
 .mini {
@@ -241,42 +244,47 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
   pointer-events: none;
 }
 .result {
-  position: absolute; inset: 0;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
-  background: radial-gradient(80% 80% at 50% 40%, rgba(10,7,22,.86), rgba(10,7,22,.94));
+  position: absolute; inset: 0; z-index: 8;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+  padding: 8px;
+  background: rgba(10, 7, 22, .9);
   border-radius: 18px;
-  animation: fade .35s ease;
+  overflow: hidden;
+  animation: fade .3s ease;
 }
 @keyframes fade { from { opacity: 0; } }
-.result-card { display: flex; align-items: center; gap: 12px; }
+.result-card { display: flex; align-items: center; gap: 10px; max-width: 100%; min-width: 0; }
 .medal {
-  width: 64px; height: 64px; border-radius: 50%;
+  flex: 0 0 auto;
+  width: 52px; height: 52px; border-radius: 50%;
   display: grid; place-items: center;
-  font-size: 28px; font-weight: 900;
+  font-size: 23px; font-weight: 900;
   border: 3px solid var(--gold);
-  box-shadow: 0 0 30px rgba(255, 207, 90, .6);
-  animation: pop .5s cubic-bezier(.2, 1.6, .5, 1);
+  box-shadow: 0 0 18px rgba(255, 207, 90, .5);
+  animation: pop .4s cubic-bezier(.2, 1.6, .5, 1);
 }
 @keyframes pop { from { transform: scale(.3); } }
 .medal.red { background: radial-gradient(circle at 35% 30%, #ff5b6e, var(--red2)); }
 .medal.black { background: radial-gradient(circle at 35% 30%, #4a4560, var(--black2)); }
 .medal.green { background: radial-gradient(circle at 35% 30%, #36e28b, var(--green2)); }
-.res-title { font-size: 13px; font-weight: 800; color: var(--muted); }
-.res-mine { font-size: 18px; font-weight: 900; margin-top: 2px; }
-.res-mine.win { color: #6dffb0; text-shadow: 0 0 14px rgba(80, 255, 160, .6); }
-.res-mine.lose { color: #ff8a8a; font-size: 14px; }
-.podium { display: flex; gap: 8px; }
+.res-info { min-width: 0; }
+.res-title { font-size: 12px; font-weight: 800; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.res-mine { font-size: 17px; font-weight: 900; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.res-mine.win { color: #6dffb0; }
+.res-mine.lose { color: #ff8a8a; font-size: 13px; }
+.podium { display: flex; gap: 6px; width: 100%; max-width: 330px; justify-content: center; }
 .pod {
-  display: flex; flex-direction: column; align-items: center; gap: 3px;
-  width: 92px; padding: 8px 4px;
-  border-radius: 14px;
+  flex: 1 1 0; min-width: 0; max-width: 104px;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 6px 4px;
+  border-radius: 12px;
   background: rgba(255,255,255,.05); border: 1px solid var(--line);
 }
 .pod.first { border-color: rgba(255, 207, 90, .6); background: rgba(255, 207, 90, .08); }
-.pod .av { width: 36px; height: 36px; border-radius: 50%; background: #2b2547 center/cover no-repeat; border: 2px solid var(--gold); display: grid; place-items: center; font-weight: 900; }
-.pod .nm { font-size: 11px; font-weight: 800; max-width: 84px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pod .wn { font-size: 11px; font-weight: 900; color: #6dffb0; }
-.pod .rk { font-size: 10px; color: var(--gold); font-weight: 900; }
+.pod .av { width: 30px; height: 30px; border-radius: 50%; background: #2b2547 center/cover no-repeat; border: 2px solid var(--gold); display: grid; place-items: center; font-weight: 900; font-size: 12px; }
+.pod .nm { font-size: 10.5px; font-weight: 800; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pod .wn { font-size: 10.5px; font-weight: 900; color: #6dffb0; white-space: nowrap; }
+.pod .rk { font-size: 9.5px; color: var(--gold); font-weight: 900; }
 
 /* ── Alt bölüm ─────────────────────────────────────────────── */
 .bottom { display: flex; flex-direction: column; gap: 6px; }

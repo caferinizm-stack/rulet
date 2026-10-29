@@ -436,11 +436,11 @@ class Wheel {
   }
   resize() {
     const css = this.canvas.clientWidth || 160;
-    const dpr = Math.min(2.5, window.devicePixelRatio || 1);
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
     // Dönüşte çark ortaya büyüyerek gelir (CSS ölçeği): çizim baştan o
     // boyutun çözünürlüğünde yapılır, büyüyünce bulanıklaşmaz.
     const zoom = Math.max(1, this.zoom || 1);
-    const px = Math.min(1600, Math.round(css * dpr * zoom));
+    const px = Math.min(1000, Math.round(css * dpr * zoom));
     if (px === this.size) return;
     this.size = px;
     this.canvas.width = px; this.canvas.height = px;
@@ -938,7 +938,8 @@ class Game {
     }
     let total = 0;
     for (const v of m.values()) total += v;
-    $('my-total').textContent = fmt(total);
+    // 10.000 ve üstü kısaltılır (10K, 1.5M): kutudan taşmasın.
+    $('my-total').textContent = total >= 10000 ? short(total) : fmt(total);
     $('balance').textContent = fmt(this.available());
     const hasAny = m.size > 0;
     $('btn-undo').disabled = !hasAny;
@@ -1001,7 +1002,7 @@ class Game {
     const mine = $('res-mine');
     if (pay > 0) {
       mine.className = 'res-mine win';
-      mine.textContent = `+${fmt(pay)} kristal`;
+      mine.textContent = `+${pay >= 1000000 ? short(pay) : fmt(pay)} kristal`;
       Sound.win();
       this.gain(pay);
       notifyApp(`win:${pay}`);
@@ -1051,7 +1052,11 @@ class Game {
       const landed = now >= r.bettingEndsAt + SPIN_MS - LAND_BEFORE_END;
       if (landed) hl = r.result;
     }
-    this.wheel.draw(now, r, phase === 'betting' ? last : null, hl);
+    // Çark dönmüyorken saniyede ~30 kare yeter (telefon ısınmaz, sonuç
+    // ekranında takılma olmaz); dönüşte tam hız.
+    this.tick = (this.tick || 0) + 1;
+    const busy = phase === 'spinning';
+    if (busy || this.tick % 2 === 0) this.wheel.draw(now, r, phase === 'betting' ? last : null, hl);
     this.spinSounds(now, r);
 
     const hub = $('hub');
