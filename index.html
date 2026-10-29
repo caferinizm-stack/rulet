@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
+    <title>Retra · Rulet</title>
+    <meta name="description" content="Canlı Avrupa ruleti: herkes aynı masada, kristal çiplerle tahmin et." />
+    <meta name="theme-color" content="#0a0716" />
+    <link rel="icon" type="image/png" href="./assets/rulet.png" />
+    <link rel="apple-touch-icon" href="./assets/rulet.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div class="app" id="app">
+      <!-- Üst şerit: bakiye · tur · oyuncular · araçlar -->
+      <header class="top">
+        <div class="balance" id="balance-pill" title="Kristal bakiyen">
+          <img src="./assets/kristal.png" alt="" />
+          <b id="balance">0</b>
+          <span class="gain" id="gain" hidden></span>
+        </div>
+        <div class="round-tag"><span id="round-no">Tur #—</span></div>
+        <div class="tools">
+          <button class="icon-btn" id="btn-sound" aria-label="Ses">🔊</button>
+          <button class="icon-btn" id="btn-board" aria-label="Günün kazananları">🏆</button>
+          <button class="icon-btn" id="btn-help" aria-label="Nasıl oynanır">?</button>
+        </div>
+      </header>
+
+      <!-- Çark + durum -->
+      <section class="stage" id="stage">
+        <div class="wheel-wrap">
+          <canvas id="wheel" aria-label="Rulet çarkı"></canvas>
+          <div class="hub" id="hub">
+            <div class="hub-num" id="hub-num">20</div>
+            <div class="hub-sub" id="hub-sub">saniye</div>
+          </div>
+        </div>
+        <div class="side">
+          <div class="phase" id="phase">Bahisler açık</div>
+          <div class="timer"><div class="timer-bar" id="timer-bar"></div></div>
+          <div class="hist-title">Son sonuçlar</div>
+          <div class="history" id="history"></div>
+          <div class="stats" id="stats">
+            <span class="dot red"></span><b id="st-red">0</b>
+            <span class="dot black"></span><b id="st-black">0</b>
+            <span class="dot green"></span><b id="st-green">0</b>
+          </div>
+          <div class="players" id="players"></div>
+        </div>
+      </section>
+
+      <!-- Bahis masası -->
+      <section class="table-wrap" id="table-wrap">
+        <div class="felt" id="felt">
+          <div class="grid" id="grid"></div>
+          <div class="dozens" id="dozens"></div>
+          <div class="outside" id="outside"></div>
+        </div>
+        <div class="closed" id="closed" hidden>
+          <span id="closed-text">Bahisler kapandı · çark dönüyor</span>
+        </div>
+        <!-- Sonuç kartı -->
+        <div class="result" id="result" hidden>
+          <div class="result-card">
+            <div class="medal" id="res-medal">17</div>
+            <div class="res-info">
+              <div class="res-title" id="res-title">Siyah · Tek · 13-24</div>
+              <div class="res-mine" id="res-mine"></div>
+            </div>
+          </div>
+          <div class="podium" id="podium"></div>
+        </div>
+      </section>
+
+      <!-- Çipler + işlemler -->
+      <footer class="bottom">
+        <div class="chips" id="chips"></div>
+        <div class="actions">
+          <button class="act" id="btn-undo"><i>↶</i>Geri al</button>
+          <button class="act" id="btn-clear"><i>✕</i>Temizle</button>
+          <button class="act" id="btn-repeat"><i>⟳</i>Tekrarla</button>
+          <button class="act" id="btn-double"><i>×2</i>İkiye katla</button>
+          <div class="total">
+            <small>Bahsin</small>
+            <b id="my-total">0</b>
+          </div>
+        </div>
+      </footer>
+
+      <div class="toast" id="toast" hidden></div>
+
+      <!-- Alt sayfalar -->
+      <div class="sheet-back" id="sheet-back" hidden></div>
+      <div class="sheet" id="sheet-board" hidden>
+        <div class="sheet-head"><b>🏆 Günün kazananları</b><button class="x" data-close>✕</button></div>
+        <div class="sheet-sub" id="board-reset">Sıralama gece yarısı sıfırlanır</div>
+        <div class="sheet-body" id="board-list"></div>
+      </div>
+      <div class="sheet" id="sheet-help" hidden>
+        <div class="sheet-head"><b>Nasıl oynanır?</b><button class="x" data-close>✕</button></div>
+        <div class="sheet-body help">
+          <p>Herkes <b>aynı masada</b> oynar. Her tur <b>20 saniye</b> bahis, ardından çark döner ve top bir sayıda durur.</p>
+          <p>Aşağıdan bir <b>kristal çipi</b> seç, masada tahmin ettiğin yere dokun. Aynı yere tekrar dokunarak çip ekleyebilirsin.</p>
+          <table>
+            <tr><th>Bahis</th><th>Kazanç</th></tr>
+            <tr><td>Tek sayı (0–36)</td><td>36×</td></tr>
+            <tr><td>Düzine (1-12 · 13-24 · 25-36)</td><td>3×</td></tr>
+            <tr><td>Kolon (2:1)</td><td>3×</td></tr>
+            <tr><td>Kırmızı / Siyah</td><td>2×</td></tr>
+            <tr><td>Tek / Çift</td><td>2×</td></tr>
+            <tr><td>1-18 / 19-36</td><td>2×</td></tr>
+          </table>
+          <p>Kazanç, koyduğun bahis <b>dahil</b> ödenir. <b>0</b> gelirse renk, tek/çift, 1-18/19-36, düzine ve kolon bahisleri kaybeder.</p>
+          <p><b>Geri al</b> son koyduğun çipleri, <b>Temizle</b> bu turdaki tüm çiplerini kaldırır ve kristallerin iade edilir. <b>Tekrarla</b> önceki turdaki bahsini, <b>İkiye katla</b> masadaki bahsini tekrar koyar.</p>
+          <p>Tek çip en fazla 1.000.000, bir turda en fazla 20.000.000 kristal.</p>
+        </div>
+      </div>
+
+      <!-- Giriş (yalnız tarayıcıda; uygulamada hiç çıkmaz) -->
+      <div class="gate" id="gate" hidden>
+        <div class="gate-card">
+          <img class="gate-logo" src="./assets/rulet.png" alt="" />
+          <b class="gate-title">Retra Rulet</b>
+          <p class="gate-text" id="gate-text">Uygulamadaki hesabınla giriş yap.</p>
+          <form id="login" class="login">
+            <input id="email" type="email" placeholder="E-posta" autocomplete="username" />
+            <input id="password" type="password" placeholder="Şifre" autocomplete="current-password" />
+            <button type="submit" class="primary">Giriş yap</button>
+          </form>
+          <button class="primary" id="retry" hidden>Tekrar dene</button>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
